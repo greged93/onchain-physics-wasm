@@ -3,12 +3,19 @@ use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::{
             builtin_hint_processor_definition::BuiltinHintProcessor,
-            hint_utils::{get_integer_from_var_name, get_ptr_from_var_name},
+            hint_utils::{
+                get_integer_from_var_name, get_ptr_from_var_name, get_reference_from_var_name,
+            },
         },
         hint_processor_definition::HintReference,
+        hint_processor_utils::get_maybe_relocatable_from_reference,
     },
     serde::deserialize_program::ApTracking,
-    types::{exec_scope::ExecutionScopes, program::Program, relocatable::MaybeRelocatable},
+    types::{
+        exec_scope::ExecutionScopes,
+        program::Program,
+        relocatable::{MaybeRelocatable, Relocatable},
+    },
     vm::{
         errors::{hint_errors::HintError, vm_errors::VirtualMachineError},
         runners::cairo_runner::CairoRunner,
@@ -40,15 +47,23 @@ fn print_two_array_hint(
         .to_bigint()
         .to_u32_digits()
         .1[0];
-    let mut x = get_ptr_from_var_name("x_fp_s", vm, ids_data, ap_tracking).unwrap();
-    let mut y = get_ptr_from_var_name("y_fp_s", vm, ids_data, ap_tracking).unwrap();
-    for _ in 0..x_len {
-        println!("{}", x);
-        x = x.add_int(&cairo_felt::Felt::new(bigint!(1))).unwrap();
+    let mut x = get_ptr_from_var_name("x_fp_s", vm, ids_data, ap_tracking)?;
+    let mut y = get_ptr_from_var_name("y_fp_s", vm, ids_data, ap_tracking)?;
+    for i in 0..x_len as usize {
+        let word_address = Relocatable {
+            segment_index: x.segment_index,
+            offset: i,
+        };
+        let value = vm.get_integer(&word_address)?;
+        println!("{}", value);
     }
-    for _ in 0..y_len {
-        println!("{}", y);
-        y = y.add_int(&cairo_felt::Felt::new(bigint!(1))).unwrap();
+    for i in 0..y_len as usize {
+        let word_address = Relocatable {
+            segment_index: y.segment_index,
+            offset: i,
+        };
+        let value = vm.get_integer(&word_address)?;
+        println!("{}", value);
     }
     Ok(())
 }
